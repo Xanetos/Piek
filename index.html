@@ -2,15 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Peak – Juicy Browser Edition</title>
+  <title>Peak – Black-Screen Fix</title>
   <style>
-    html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:sans-serif;color:#fff}
-    canvas{display:block;margin:auto;background:transparent}
+    html,body{margin:0;height:100%;overflow:hidden;background:#111;font-family:sans-serif;color:#fff}
+    canvas{display:block;margin:auto;background:#111}
     #ui{position:absolute;top:12px;left:12px;font-size:14px;text-shadow:0 0 4px #000}
     #ui input{padding:4px 6px;border:none;border-radius:4px}
     #ui button{margin-left:6px;padding:6px 12px;border:none;border-radius:4px;background:#0bf;color:#fff;cursor:pointer;font-weight:bold}
     #pop{margin-left:12px}
-    #warn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#b00;color:#fff;padding:12px 18px;border-radius:6px;display:none}
   </style>
 </head>
 <body>
@@ -20,15 +19,18 @@
   <button id="startBtn">Start / Re-spawn</button>
   <span id="pop">Players: <span id="count">0</span></span>
 </div>
-<div id="warn">Running solo – open via localhost if you want multiplayer</div>
 
 <script>
+/* ---------- tiny safe-guard wrappers ---------- */
+function safeDraw(fn){try{fn();}catch(e){console.error(e);}}
+function safeUpdate(fn){try{fn();}catch(e){console.error(e);}}
+
 /* ---------- CONFIG ---------- */
 const STEP=3, GRAV=0.45, DAMP=0.97, MAX_V=9, ROCK_R=18, REACH=44, SYNC_MS=50;
 
 /* ---------- CANVAS ---------- */
 const c=document.getElementById('c'), ctx=c.getContext('2d');
-function resize(){c.width=innerWidth;c.height=innerHeight;generateBackground();makeRocks();}
+function resize(){c.width=innerWidth;c.height=innerHeight;makeRocks();}
 resize(); addEventListener('resize',resize);
 
 /* ---------- INPUT ---------- */
@@ -41,23 +43,10 @@ c.addEventListener('mouseup',  _=>mouseDown=0);
 c.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});
 
 /* ---------- BACKGROUND ---------- */
-const parallax=[];
-function generateBackground(){
-  parallax.length=0;
-  for(let i=0;i<120;i++){
-    parallax.push({x:Math.random()*c.width,y:Math.random()*c.height,
-                   s:1+Math.random()*3,o:0.3+Math.random()*0.5,r:Math.random()*2});
-  }
-}
 function drawBackground(){
   const g=ctx.createLinearGradient(0,0,0,c.height);
   g.addColorStop(0,'#0d1b2a');g.addColorStop(0.6,'#1b263b');g.addColorStop(1,'#415a77');
   ctx.fillStyle=g;ctx.fillRect(0,0,c.width,c.height);
-  for(const p of parallax){
-    p.y+=p.s*0.15; if(p.y>c.height){p.y=-10;p.x=Math.random()*c.width;}
-    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx.fillStyle=`rgba(255,255,255,${p.o})`;ctx.fill();
-  }
 }
 
 /* ---------- PLAYER ---------- */
@@ -68,7 +57,7 @@ class Player{
     this.armAngle=0;this.trail=[];
   }
   update(){
-    if(this.id!==myId){this.draw();return;}
+    if(this.id!==myId){safeDraw(()=>this.draw());return;}
     const left=keys['a']||keys['arrowleft'], right=keys['d']||keys['arrowright'], up=keys['w']||keys['arrowup'];
     if(left)this.vx-=0.3; if(right)this.vx+=0.3;
     if(!this.climb){this.vy+=GRAV;this.vx*=DAMP;this.vy*=DAMP;}
@@ -87,7 +76,7 @@ class Player{
     if(this.y>c.height+120){this.y=50;this.x=c.width/2;this.vx=this.vy=0;}
     this.armAngle+=0.15;
     this.trail.push({x:this.x,y:this.y});if(this.trail.length>8)this.trail.shift();
-    this.draw();
+    safeDraw(()=>this.draw());
   }
   draw(){
     for(let i=0;i<this.trail.length;i++){
@@ -112,15 +101,11 @@ class Player{
 class Rock{
   constructor(x,y,r){this.x=x;this.y=y;this.r=r;this.base=`hsl(${30+Math.random()*20},40%,${25+r/2}%)`;this.pulse=0;}
   update(){this.pulse+=0.04;}
-  draw(){
-    ctx.save();ctx.translate(this.x,this.y);ctx.shadowBlur=14;ctx.shadowColor=this.base;
-    ctx.beginPath();ctx.arc(0,0,this.r,0,Math.PI*2);ctx.fillStyle=this.base;ctx.fill();
-    ctx.beginPath();ctx.arc(0,0,this.r-4,0,Math.PI*2);ctx.fillStyle=`hsl(30,30%,${40+Math.sin(this.pulse)*8}%)`;ctx.fill();
-    ctx.restore();
-  }
+  draw(){ctx.save();ctx.translate(this.x,this.y);ctx.shadowBlur=14;ctx.shadowColor=this.base;ctx.beginPath();ctx.arc(0,0,this.r,0,Math.PI*2);ctx.fillStyle=this.base;ctx.fill();ctx.beginPath();ctx.arc(0,0,this.r-4,0,Math.PI*2);ctx.fillStyle=`hsl(30,30%,${40+Math.sin(this.pulse)*8}%)`;ctx.fill();ctx.restore();}
 }
 const rocks=[];
 function makeRocks(){rocks.length=0;for(let i=0;i<60;i++)rocks.push(new Rock(Math.random()*c.width,Math.random()*(c.height-250)+150,ROCK_R+Math.random()*14));rocks.sort((a,b)=>b.y-a.y);}
+makeRocks();addEventListener('resize',makeRocks);
 
 /* ---------- NET ---------- */
 const myId='id_'+Math.random().toString(36).slice(2,9);
@@ -129,7 +114,7 @@ function startWS(){
   if(ws){ws.close();}
   const wsUrl=(location.protocol==="file:")?"ws://localhost:8080":`wss://${location.host}`;
   ws=new WebSocket(wsUrl);
-  ws.onopen=()=>{document.getElementById('warn').style.display='none';ws.send(JSON.stringify({type:'join',name:document.getElementById('name').value,id:myId}));};
+  ws.onopen=()=>{ws.send(JSON.stringify({type:'join',name:document.getElementById('name').value,id:myId}));};
   ws.onmessage=msg=>{
     const data=JSON.parse(msg.data);
     if(data.type==='state'){players={};for(const p of data.players)players[p.id]=new Player(p.id,p.name,p.x,p.y);}
@@ -137,7 +122,7 @@ function startWS(){
     if(data.type==='leave')delete players[data.id];
     document.getElementById('count').textContent=Object.keys(players).length;
   };
-  ws.onclose=ws.onerror=_=>{document.getElementById('warn').style.display='block';setTimeout(startWS,2000);};
+  ws.onclose=ws.onerror=_=>setTimeout(startWS,2000);
 }
 document.getElementById('startBtn').onclick=()=>{
   startWS();
@@ -157,9 +142,9 @@ function sync(){
 
 /* ---------- LOOP ---------- */
 function loop(){
-  drawBackground();
-  for(const r of rocks){r.update();r.draw();}
-  for(const p of Object.values(players))p.update();
+  safeDraw(drawBackground);
+  for(const r of rocks){safeUpdate(()=>r.update());safeDraw(()=>r.draw());}
+  for(const p of Object.values(players))safeUpdate(()=>p.update());
   sync();
   requestAnimationFrame(loop);
 }
