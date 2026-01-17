@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Peak – Juicy Browser Edition (FIXED)</title>
+  <title>Peak – Juicy Browser Edition</title>
   <style>
     html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:sans-serif;color:#fff}
     canvas{display:block;margin:auto;background:transparent}
@@ -24,12 +24,10 @@
 
 <script>
 /* ---------- CONFIG ---------- */
-const STEP   = 3,  GRAV   = 0.45,  DAMP   = 0.97,  MAX_V  = 9,
-      ROCK_R = 18, REACH  = 44,    SYNC_MS= 50;
+const STEP=3, GRAV=0.45, DAMP=0.97, MAX_V=9, ROCK_R=18, REACH=44, SYNC_MS=50;
 
 /* ---------- CANVAS ---------- */
-const c   = document.getElementById('c'),
-      ctx = c.getContext('2d');
+const c=document.getElementById('c'), ctx=c.getContext('2d');
 function resize(){c.width=innerWidth;c.height=innerHeight;generateBackground();makeRocks();}
 resize(); addEventListener('resize',resize);
 
@@ -66,7 +64,7 @@ function drawBackground(){
 class Player{
   constructor(id,name,x,y){
     this.id=id;this.name=name;this.x=x;this.y=y;this.vx=this.vy=0;
-    this.climb=false;this.color= `hsl(${Math.random()*360},70%,55%)`;
+    this.climb=false;this.color=`hsl(${Math.random()*360},70%,55%)`;
     this.armAngle=0;this.trail=[];
   }
   update(){
@@ -97,8 +95,7 @@ class Player{
       ctx.beginPath();ctx.arc(t.x,t.y,14*a,0,Math.PI*2);
       ctx.fillStyle=this.color.replace('55%)',(15+a*40)+'%)');ctx.fill();
     }
-    ctx.save();
-    ctx.translate(this.x,this.y);ctx.shadowBlur=20;ctx.shadowColor=this.color;
+    ctx.save();ctx.translate(this.x,this.y);ctx.shadowBlur=20;ctx.shadowColor=this.color;
     ctx.beginPath();ctx.arc(0,0,15,0,Math.PI*2);ctx.fillStyle=this.color;ctx.fill();
     ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
     ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-5,-2,2,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(5,-2,2,0,Math.PI*2);ctx.fill();
@@ -113,7 +110,7 @@ class Player{
 
 /* ---------- ROCKS ---------- */
 class Rock{
-  constructor(x,y,r){this.x=x;this.y=y;this.r=r;this.base= `hsl(${30+Math.random()*20},40%,${25+r/2}%)`;this.pulse=0;}
+  constructor(x,y,r){this.x=x;this.y=y;this.r=r;this.base=`hsl(${30+Math.random()*20},40%,${25+r/2}%)`;this.pulse=0;}
   update(){this.pulse+=0.04;}
   draw(){
     ctx.save();ctx.translate(this.x,this.y);ctx.shadowBlur=14;ctx.shadowColor=this.base;
@@ -130,30 +127,17 @@ const myId='id_'+Math.random().toString(36).slice(2,9);
 let ws,players={};
 function startWS(){
   if(ws){ws.close();}
-  /* ---- FIX: choose correct protocol ---- */
-  const wsUrl = (location.protocol === "file:")
-                ? "ws://localhost:8080"
-                : `wss://${location.host}`;
-  ws = new WebSocket(wsUrl);
-
-  ws.onopen=()=>{
-    document.getElementById('warn').style.display='none';
-    ws.send(JSON.stringify({type:'join',name:document.getElementById('name').value,id:myId}));
-  };
+  const wsUrl=(location.protocol==="file:")?"ws://localhost:8080":`wss://${location.host}`;
+  ws=new WebSocket(wsUrl);
+  ws.onopen=()=>{document.getElementById('warn').style.display='none';ws.send(JSON.stringify({type:'join',name:document.getElementById('name').value,id:myId}));};
   ws.onmessage=msg=>{
     const data=JSON.parse(msg.data);
     if(data.type==='state'){players={};for(const p of data.players)players[p.id]=new Player(p.id,p.name,p.x,p.y);}
-    if(data.type==='update'){if(data.id!==myId && players[data.id]){const t=players[data.id];t.x=data.x;t.y=data.y;t.vx=data.vx;t.vy=data.vy;t.climb=data.climb;}}
+    if(data.type==='update'){if(data.id!==myId&&players[data.id]){const t=players[data.id];t.x=data.x;t.y=data.y;t.vx=data.vx;t.vy=data.vy;t.climb=data.climb;}}
     if(data.type==='leave')delete players[data.id];
     document.getElementById('count').textContent=Object.keys(players).length;
   };
-  ws.onclose=_=>{
-    document.getElementById('warn').style.display='block';
-    setTimeout(startWS,2000);
-  };
-  ws.onerror=_=>{
-    document.getElementById('warn').style.display='block';
-  };
+  ws.onclose=ws.onerror=_=>{document.getElementById('warn').style.display='block';setTimeout(startWS,2000);};
 }
 document.getElementById('startBtn').onclick=()=>{
   startWS();
@@ -164,7 +148,7 @@ document.getElementById('startBtn').onclick=()=>{
 let lastSync=0;
 function sync(){
   const now=performance.now();
-  if(now-lastSync>SYNC_MS && ws && ws.readyState===1 && players[myId]){
+  if(now-lastSync>SYNC_MS&&ws&&ws.readyState===1&&players[myId]){
     const p=players[myId];
     ws.send(JSON.stringify({type:'update',id:myId,x:p.x,y:p.y,vx:p.vx,vy:p.vy,climb:p.climb}));
     lastSync=now;
